@@ -1,0 +1,383 @@
+{
+  "name": "IDRAH Tech - n8n Reliability Sandbox v0.1",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "idrah-reliability-sandbox-v01",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -900,
+        0
+      ],
+      "id": "03b0e3c2-5be4-4fe0-9e97-bbc0e1a4056d",
+      "name": "Synthetic Intake"
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $json.body ?? $json;\nconst eventId = String(payload.event_id ?? '').trim();\nconst customerId = String(payload.customer_id ?? '').trim();\nconst action = String(payload.action ?? '').trim().toLowerCase();\nconst allowedActions = new Set(['classify', 'sync', 'notify']);\nconst reasons = [];\nif (!eventId) reasons.push('missing_event_id');\nif (!customerId) reasons.push('missing_customer_id');\nif (!allowedActions.has(action)) reasons.push('unsupported_action');\nconst state = $getWorkflowStaticData('global');\nstate.seen = state.seen || {};\nconst duplicate = Boolean(eventId && state.seen[eventId]);\nreturn [{ json: {\n  event_id: eventId || null,\n  customer_id: customerId || null,\n  action: action || null,\n  simulate_failure: payload.simulate_failure === true,\n  needs_review: reasons.length > 0,\n  review_reason: reasons.join(','),\n  duplicate\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -680,
+        0
+      ],
+      "id": "604b0887-07df-4f15-bd56-114af94d48cb",
+      "name": "Normalize + Gate"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c464b243-b6cb-441a-874b-86c4bd57ed4e",
+              "leftValue": "={{ $json.needs_review }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -460,
+        0
+      ],
+      "id": "34bb47cf-b55c-4b40-a1a3-aa14b2ac3b70",
+      "name": "Needs Human Review?"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { status: 'review_required', http_status: 202, event_id: $json.event_id, reason: $json.review_reason } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        -180
+      ],
+      "id": "c0c6af36-0c1b-4fa5-a35c-33a8a26b2f1a",
+      "name": "Build Review Response"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ef11ac53-8a69-4017-82a1-019d35771d02",
+              "leftValue": "={{ $json.duplicate }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -240,
+        80
+      ],
+      "id": "d4ba28cb-e793-4246-8c5d-7ec76737b8df",
+      "name": "Duplicate?"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { status: 'duplicate_ignored', http_status: 200, event_id: $json.event_id } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -20,
+        -40
+      ],
+      "id": "fd1761bb-1fd3-429b-9052-42de10f6919c",
+      "name": "Build Duplicate Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "if ($json.simulate_failure) {\n  return [{ json: { ...$json, downstream_ok: false, downstream_error: 'synthetic_downstream_failure' } }];\n}\nreturn [{ json: { ...$json, downstream_ok: true, structured_result: { decision: 'accepted', action: $json.action, customer_id: $json.customer_id } } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -20,
+        160
+      ],
+      "id": "0676329c-8bf5-48c5-af00-c14207f1ce7b",
+      "name": "Simulated Structured Downstream"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dc441bb9-f71d-4654-bba2-695010306417",
+              "leftValue": "={{ $json.downstream_ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        200,
+        160
+      ],
+      "id": "2d11e2aa-7bef-4528-95b3-e7497d870950",
+      "name": "Downstream Succeeded?"
+    },
+    {
+      "parameters": {
+        "jsCode": "const state = $getWorkflowStaticData('global');\nstate.seen = state.seen || {};\nstate.seen[$json.event_id] = new Date().toISOString();\nconst keys = Object.keys(state.seen);\nif (keys.length > 1000) {\n  keys.sort((a, b) => String(state.seen[a]).localeCompare(String(state.seen[b])));\n  for (const key of keys.slice(0, keys.length - 1000)) delete state.seen[key];\n}\nreturn [{ json: $json }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        80
+      ],
+      "id": "b4d79b40-da68-41be-88d7-1681337d18bc",
+      "name": "Commit Idempotency Key"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { status: 'processed', http_status: 200, event_id: $json.event_id, result: $json.structured_result } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        80
+      ],
+      "id": "f10e030d-0c52-4d62-8964-cff0df15666b",
+      "name": "Build Success Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { status: 'retryable_failure', http_status: 503, event_id: $json.event_id, error: $json.downstream_error } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        260
+      ],
+      "id": "fca8321e-524e-4441-b370-0bca8c6c0036",
+      "name": "Build Failure Response"
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {
+          "responseCode": "={{ $json.http_status }}"
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        860,
+        20
+      ],
+      "id": "07157b24-ce04-4ec2-8652-e7e5ec0ce785",
+      "name": "Respond"
+    }
+  ],
+  "connections": {
+    "Synthetic Intake": {
+      "main": [
+        [
+          {
+            "node": "Normalize + Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize + Gate": {
+      "main": [
+        [
+          {
+            "node": "Needs Human Review?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Human Review?": {
+      "main": [
+        [
+          {
+            "node": "Build Review Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Duplicate?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Review Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Duplicate?": {
+      "main": [
+        [
+          {
+            "node": "Build Duplicate Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Simulated Structured Downstream",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Duplicate Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simulated Structured Downstream": {
+      "main": [
+        [
+          {
+            "node": "Downstream Succeeded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Downstream Succeeded?": {
+      "main": [
+        [
+          {
+            "node": "Commit Idempotency Key",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Failure Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Commit Idempotency Key": {
+      "main": [
+        [
+          {
+            "node": "Build Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Success Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Failure Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}
