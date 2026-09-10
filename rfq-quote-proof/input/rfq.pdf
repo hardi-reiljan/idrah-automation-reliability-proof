@@ -1,0 +1,66 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [4 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>
+endobj
+5 0 obj
+<< /Length 877 >>
+stream
+BT
+/F1 11 Tf
+72 740 Td
+(ACME BUYER LTD) Tj
+0 -14 Td
+(Request for Quotation RFQ-2026-0910) Tj
+0 -14 Td
+(Electrical parts -- please quote unit price and lead time per line.) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(LINE | CODE | DESCRIPTION | QTY | UNIT) Tj
+0 -14 Td
+(1 | CB-16A-1P | MCB 16A 1-pole type C | 50 | pcs) Tj
+0 -14 Td
+(2 | CB-20A-1P | MCB 20A 1-pole type C | 10 | box) Tj
+0 -14 Td
+(3 | XYZ-9999 | Unlisted breaker part | 5 | pcs) Tj
+0 -14 Td
+(4 | RLY-230V-2CO | Interface relay 230V 2CO | 8 | pcs) Tj
+0 -14 Td
+(5 | DUP-CODE-01 | Ambiguous catalogue item | 3 | pcs) Tj
+0 -14 Td
+(6 | CB-16A-1P-OLD | Legacy MCB 16A part \(discontinued\) | 20 | pcs) Tj
+0 -14 Td
+(7 | CB-32A-3P | MCB 32A 3-pole type C | 4 | pcs) Tj
+0 -14 Td
+(8 | CB-32A-3P | MCB 32A 3-pole type C | 6 | pcs) Tj
+0 -14 Td
+(9 | LUG-2.5-M4 | Cable lug 2.5mm2 M4 | 200 | pcs) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(End of RFQ.) Tj
+ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000185 00000 n 
+0000000311 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1239
+%%EOF

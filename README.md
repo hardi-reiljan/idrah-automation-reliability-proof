@@ -75,3 +75,7 @@ What it does **not** support:
 The goal is not to publish a giant framework. It is to give a buyer one inspectable artifact that shows how I think about failure, retries, state, human review and security boundaries before touching real infrastructure.
 
 — Hardi Reiljan, IDRAH Tech
+
+## RFQ → Quote Proof
+
+A second bounded proof covers text-PDF RFQ extraction, approved catalogue/price matching, human-review routing, n8n execution, and Excel quotation output. See [`rfq-quote-proof/README.md`](rfq-quote-proof/README.md).

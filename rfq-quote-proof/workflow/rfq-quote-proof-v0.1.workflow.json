@@ -1,0 +1,286 @@
+{
+  "name": "Money Machine - RFQ Quote Line Match Proof v0.1",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mm-rfq-quote-proof-v01",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1100,
+        0
+      ],
+      "id": "a1b2c3d4-0001-4a11-8a11-000000000001",
+      "name": "Synthetic Intake",
+      "webhookId": "b2c3d4e5-0002-4a22-8a22-000000000002"
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $json.body ?? $json;\nconst line = payload.rfq_line ?? {};\nconst lineNo = line.line_no ?? null;\nconst code = String(line.product_code ?? '').trim();\nconst description = String(line.description ?? '').trim();\nconst unit = String(line.unit ?? '').trim();\nconst qtyRaw = line.qty;\nconst qty = typeof qtyRaw === 'number' ? qtyRaw : Number(String(qtyRaw ?? '').replace(',', ''));\nconst missing = [];\nif (!code) missing.push('product_code');\nif (!unit) missing.push('unit');\nif (qtyRaw === undefined || qtyRaw === null || Number.isNaN(qty) || qty <= 0) missing.push('qty');\nreturn [{ json: {\n  line_no: lineNo,\n  product_code: code,\n  description,\n  unit,\n  qty,\n  missing_fields: missing,\n  needs_review: missing.length > 0,\n  review_reason: missing.length ? 'missing_field:' + missing.join(',') : null\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        0
+      ],
+      "id": "c3d4e5f6-0003-4a33-8a33-000000000003",
+      "name": "Normalize RFQ Line"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d4e5f6a7-0004-4a44-8a44-000000000004",
+              "leftValue": "={{ $json.needs_review }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -660,
+        0
+      ],
+      "id": "e5f6a7b8-0005-4a55-8a55-000000000005",
+      "name": "Missing Required Field?"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { status: 'needs_review', http_status: 202, line_no: $json.line_no, requested_code: $json.product_code, reasons: [$json.review_reason].filter(Boolean), suggested_code: null } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -440,
+        -180
+      ],
+      "id": "f6a7b8c9-0006-4a66-8a66-000000000006",
+      "name": "Build Missing Field Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "const CATALOGUE = [\n  {product_code:'CB-16A-1P', description:'MCB 16A 1-pole type C', unit:'pcs', substitute_for:null},\n  {product_code:'CB-20A-1P', description:'MCB 20A 1-pole type C', unit:'pcs', substitute_for:null},\n  {product_code:'CB-32A-3P', description:'MCB 32A 3-pole type C', unit:'pcs', substitute_for:null},\n  {product_code:'CTC-09A-230V', description:'Contactor 9A 230V coil', unit:'pcs', substitute_for:null},\n  {product_code:'TB-2.5-GY', description:'Terminal block 2.5mm2 grey', unit:'pcs', substitute_for:null},\n  {product_code:'CBL-H07VK-2.5-BK', description:'Cable H07V-K 2.5mm2 black', unit:'m', substitute_for:null},\n  {product_code:'RLY-230V-2CO', description:'Interface relay 230V 2CO', unit:'pcs', substitute_for:null},\n  {product_code:'LUG-2.5-M4', description:'Cable lug 2.5mm2 M4', unit:'pcs', substitute_for:null},\n  {product_code:'CB-16A-1P-NEW', description:'MCB 16A 1-pole type C (rev B)', unit:'pcs', substitute_for:'CB-16A-1P-OLD'},\n  {product_code:'DUP-CODE-01', description:'Duplicate catalogue entry A', unit:'pcs', substitute_for:null},\n  {product_code:'DUP-CODE-01', description:'Duplicate catalogue entry B', unit:'box', substitute_for:null}\n];\nconst PRICE_LIST = [\n  {product_code:'CB-16A-1P', unit:'pcs', unit_price:1.85, currency:'EUR'},\n  {product_code:'CB-20A-1P', unit:'pcs', unit_price:2.10, currency:'EUR'},\n  {product_code:'CB-32A-3P', unit:'pcs', unit_price:6.40, currency:'EUR'},\n  {product_code:'CTC-09A-230V', unit:'pcs', unit_price:14.20, currency:'EUR'},\n  {product_code:'TB-2.5-GY', unit:'pcs', unit_price:0.09, currency:'EUR'},\n  {product_code:'CBL-H07VK-2.5-BK', unit:'m', unit_price:0.62, currency:'EUR'},\n  {product_code:'LUG-2.5-M4', unit:'pcs', unit_price:0.18, currency:'EUR'},\n  {product_code:'CB-16A-1P-NEW', unit:'pcs', unit_price:1.95, currency:'EUR'}\n];\nconst norm = (s) => String(s ?? '').trim().toUpperCase();\nconst code = norm($json.product_code);\nconst unit = norm($json.unit);\nconst reasons = [];\nlet matched = null;\nlet suggested = null;\nconst matches = CATALOGUE.filter(c => norm(c.product_code) === code);\nif (matches.length === 1) {\n  matched = matches[0];\n} else if (matches.length > 1) {\n  reasons.push('ambiguous_catalogue_code');\n} else {\n  const subs = CATALOGUE.filter(c => c.substitute_for && norm(c.substitute_for) === code);\n  if (subs.length === 1) {\n    reasons.push('substitution_available');\n    suggested = subs[0];\n  } else if (subs.length > 1) {\n    reasons.push('ambiguous_substitution');\n  } else {\n    reasons.push('unknown_code');\n  }\n}\nlet unitPrice = null;\nlet currency = null;\nif (matched) {\n  if (norm(matched.unit) !== unit) {\n    reasons.push('unit_mismatch');\n  } else {\n    const priceRow = PRICE_LIST.find(p => norm(p.product_code) === code && norm(p.unit) === unit);\n    if (!priceRow) {\n      reasons.push('unapproved_price');\n    } else {\n      unitPrice = priceRow.unit_price;\n      currency = priceRow.currency;\n    }\n  }\n}\nreturn [{ json: {\n  line_no: $json.line_no,\n  requested_code: $json.product_code,\n  qty: $json.qty,\n  unit,\n  reasons,\n  needs_review: reasons.length > 0,\n  matched_code: matched ? matched.product_code : null,\n  matched_description: matched ? matched.description : null,\n  suggested_code: suggested ? suggested.product_code : null,\n  suggested_description: suggested ? suggested.description : null,\n  unit_price: unitPrice,\n  currency,\n  line_total: (matched && !reasons.length) ? Math.round($json.qty * unitPrice * 100) / 100 : null\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -440,
+        80
+      ],
+      "id": "a7b8c9d0-0007-4a77-8a77-000000000007",
+      "name": "Match Against Catalogue"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b8c9d0e1-0008-4a88-8a88-000000000008",
+              "leftValue": "={{ $json.needs_review }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -220,
+        80
+      ],
+      "id": "c9d0e1f2-0009-4a99-8a99-000000000009",
+      "name": "Needs Review?"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { status: 'needs_review', http_status: 202, line_no: $json.line_no, requested_code: $json.requested_code, reasons: $json.reasons, suggested_code: $json.suggested_code, suggested_description: $json.suggested_description } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        200
+      ],
+      "id": "d0e1f2a3-0010-4aaa-8aaa-000000000010",
+      "name": "Build Review Response"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { status: 'matched', http_status: 200, line_no: $json.line_no, matched_code: $json.matched_code, matched_description: $json.matched_description, unit: $json.unit, qty: $json.qty, unit_price: $json.unit_price, currency: $json.currency, line_total: $json.line_total } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        -40
+      ],
+      "id": "e1f2a3b4-0011-4abb-8abb-000000000011",
+      "name": "Build Matched Response"
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {
+          "responseCode": "={{ $json.http_status }}"
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        240,
+        0
+      ],
+      "id": "f2a3b4c5-0012-4acc-8acc-000000000012",
+      "name": "Respond"
+    }
+  ],
+  "connections": {
+    "Synthetic Intake": {
+      "main": [
+        [
+          {
+            "node": "Normalize RFQ Line",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize RFQ Line": {
+      "main": [
+        [
+          {
+            "node": "Missing Required Field?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Missing Required Field?": {
+      "main": [
+        [
+          {
+            "node": "Build Missing Field Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Match Against Catalogue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Missing Field Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Against Catalogue": {
+      "main": [
+        [
+          {
+            "node": "Needs Review?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Review?": {
+      "main": [
+        [
+          {
+            "node": "Build Review Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Matched Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Review Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Matched Response": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "11111111-2222-4333-8444-555555555555",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": [],
+  "id": "rfqQuoteProofV01"
+}
